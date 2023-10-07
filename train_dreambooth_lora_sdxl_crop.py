@@ -256,7 +256,7 @@ def parse_args(input_args=None):
         "--sample_batch_size", type=int, default=4, help="Batch size (per device) for sampling images."
     )
     parser.add_argument("--num_train_epochs", type=int, default=1)
-    parser.add_argument("--iscrop", default=False)
+    parser.add_argument("--iscrop", default=True)
     parser.add_argument("--dtype", type=torch.dtype, default=torch.float32)
     parser.add_argument(
         "--max_train_steps",
@@ -1152,6 +1152,7 @@ def main(args):
                 ori_image = batch["ori_pixel_values"]
                 w, h = ori_image[0].size
                 crop_sz = (args.crop_size, args.crop_size)
+                # print(">> origi image size", w, h, not args.iscrop or w - crop_sz[0] < 10)
                 if not args.iscrop or w - crop_sz[0] < 10:
                     model_input = vae.encode(pixel_values).latent_dist.sample()
                     add_time_ids = instance_time_ids
@@ -1166,7 +1167,9 @@ def main(args):
                     crop_pix_values = crop_pix_values.to(memory_format=torch.contiguous_format).float().to(device=vae.device , dtype=vae.dtype)
                     add_time_ids = compute_time_ids_argument(
                         original_size=(w, h),
+                        # original_size=(args.resolution, args.resolution),
                         target_size=crop_sz,
+                        # target_size=(args.resolution, args.resolution),
                         crops_coords_top_left=(x, y)
                     )
                     model_input = vae.encode(crop_pix_values).latent_dist.sample()

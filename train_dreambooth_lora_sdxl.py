@@ -1149,9 +1149,8 @@ def main(args):
             with accelerator.accumulate(unet):
                 pixel_values = batch["pixel_values"].to(dtype=vae.dtype)
 
-                # print(">> -", crop_pix_values.dtype, crop_pix_values.device, vae.dtype, vae.device)
                 # Convert images to latent space
-                
+
                 model_input = vae.encode(pixel_values).latent_dist.sample()
                 model_input = model_input * vae.config.scaling_factor
                 if args.pretrained_vae_model_name_or_path is None:

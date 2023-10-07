@@ -85,16 +85,23 @@ def unet_attn_processors_state_dict(unet):
 
     return attn_processors_state_dict
 
+# -- 训练SDXL lora  应用于  ,脚本开发 by nanqiao~
 
 def main():
-    model_root = 'models/stable-diffusion-xl-base-1.0'
-    output_dir = 'nqdeng'
+    model_root = '/home/dell/workspace/models/stable-diffusion-xl-base-1.0'
+    output_dir = 'jlout'
     device = 'cuda'
     dtype = torch.float32
-    steps = 100
-    prompt = 'Steven Gates'
-    image = Image.open('test/nq/nq.png')
-    image = image.resize((512,512), resample=Image.Resampling.LANCZOS)
+    steps = 150
+    prompt = 'jialin'
+    img_s = [#"./jl_test/jl_test_face.png", 
+            "./jl_test/jl_test_pure.png"]
+    # img_ = "./jl_test/jl_test_pure.png"
+    # sz = (512,512) 
+    sz = (768, 768) 
+    images = [Image.open(img_) for img_ in img_s]
+    images = [image.resize(sz, resample=Image.Resampling.LANCZOS) for image in images]
+    # image = image.resize(sz, resample=Image.Resampling.LANCZOS)
 
     scheduler = DDPMScheduler.from_pretrained(
         model_root,
@@ -191,20 +198,25 @@ def main():
     )
 
     add_time_ids, _ = create_add_time_ids(
-        image.size,
+        images[0].size,
         (0, 0),
-        image.size
+        images[0].size
     )
     add_time_ids = add_time_ids.to(device, dtype=dtype)
 
-    init_image = create_np_image(image).to(device, dtype=dtype)
-    init_latent = vae.encode(init_image).latent_dist.sample()
-    init_latent = init_latent * vae.config.scaling_factor
 
     pbar = tqdm(range(steps))
     pbar.set_description('Steps')
+    inx = 0 
     for i in pbar: 
         # Sample noise that we'll add to the latents
+        # swaper image
+        image = images[inx % len(images)]
+        inx += 1
+        init_image = create_np_image(image).to(device, dtype=dtype)
+        init_latent = vae.encode(init_image).latent_dist.sample()
+        init_latent = init_latent * vae.config.scaling_factor
+
         noise = torch.randn_like(init_latent, device=device)
         bsz = init_latent.shape[0]
         

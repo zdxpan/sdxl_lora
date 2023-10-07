@@ -102,6 +102,7 @@ class DreamBoothDataset(Dataset):
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
         example["instance_images"] = self.image_transforms(instance_image)
+        example["instance_images_"] = instance_image
 
         if self.class_data_root:
             class_image = Image.open(self.class_images_path[index % self.num_class_images])
@@ -116,6 +117,7 @@ class DreamBoothDataset(Dataset):
 
 def collate_fn(examples, with_prior_preservation=False):
     pixel_values = [example["instance_images"] for example in examples]
+    images = [example["instance_images_"] for example in examples]
 
     # Concat class and instance examples for prior preservation.
     # We do this to avoid doing two forward passes.
@@ -125,7 +127,7 @@ def collate_fn(examples, with_prior_preservation=False):
     pixel_values = torch.stack(pixel_values)
     pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
 
-    batch = {"pixel_values": pixel_values}
+    batch = {"pixel_values": pixel_values, "images": images}
     return batch
 
 
@@ -214,19 +216,20 @@ def main():
     
 
     model_root = '/home/dell/workspace/models/stable-diffusion-xl-base-1.0'
-    output_dir = 'zdx'
+    output_dir = 'jlout'
     device = 'cuda'
     dtype = torch.float32
-    train_batch_size = 4
+    train_batch_size = 1
     dataloader_num_workers = 2
     with_prior_preservation = False
     steps = 100
     num_train_epochs = steps
     gradient_accumulation_steps = 2
-    prompt = 'zdx'
+    prompt = 'jialin'
     resolution = 1024
     mixed_precision = "bf16"
-    instance_data_dir = "/home/dell/workspace/xl_lora/zdxface"
+    instance_data_dir = "/home/dell/workspace/xl_lora/jl_test"
+    # instance_data_dir = "/home/dell/workspace/xl_lora/zdxpure"
     # image = Image.open('test/nq/nq.png')
     # image = image.resize((512,512), resample=Image.Resampling.LANCZOS)
 
@@ -381,17 +384,17 @@ def main():
     # for epoch in range(0, steps):
     for i in pbar: 
         for step, batch in enumerate(train_dataloader):
-            
             pixel_values = batch["pixel_values"].to(dtype=vae.dtype)
             model_input = vae.encode(pixel_values).latent_dist.sample()
             model_input = model_input * vae.config.scaling_factor
             if 1:
                 model_input = model_input.to(dtype)
-
-            # init_image = create_np_image(image).to(device, dtype=dtype)
-            # init_latent = vae.encode(init_image).latent_dist.sample()
-            # init_latent = init_latent * vae.config.scaling_factor
-            init_latent = model_input
+            
+            image = batch["images"]
+            init_image = create_np_image(image).to(device, dtype=dtype)
+            init_latent = vae.encode(init_image).latent_dist.sample()
+            init_latent = init_latent * vae.config.scaling_factor
+            # init_latent = model_input
 
             # Sample noise that we'll add to the latents
             noise = torch.randn_like(init_latent, device=device)
